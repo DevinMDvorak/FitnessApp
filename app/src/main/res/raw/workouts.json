@@ -1,0 +1,44 @@
+{
+  "workouts": [
+    {
+      "name": "Recommended Routine",
+      "sets": [
+        {
+          "name": "Pullups",
+          "time": 0,
+          "rest": 10
+        },
+        {
+          "name": "Sprints",
+          "time": 15,
+          "rest": 5
+        },
+        {
+          "name": "Pullups",
+          "time": 0,
+          "rest": 30
+        },
+        {
+          "name": "Sprints",
+          "time": 15,
+          "rest": 5
+        }
+      ]
+    },
+    {
+      "name": "Workout 2",
+      "sets": [
+        {
+          "name": "Pullups",
+          "time": 0,
+          "rest": 30
+        },
+        {
+          "name": "Sprints",
+          "time": 15,
+          "rest": 100
+        }
+      ]
+    }
+  ]
+}
