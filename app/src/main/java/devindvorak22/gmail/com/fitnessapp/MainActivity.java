@@ -13,10 +13,12 @@ import android.support.design.widget.NavigationView;
 import android.support.design.widget.TextInputEditText;
 import android.support.v7.app.AppCompatActivity;
 import android.text.InputType;
+import android.text.TextUtils;
 import android.text.method.DigitsKeyListener;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -55,6 +57,9 @@ public class MainActivity extends AppCompatActivity {
     private BottomNavigationView bottomNavigationView;
     private Button startWorkoutButton;
 
+    // This is the exit button that is part of the action bar at the top
+    private MenuItem exitButton;
+
     // Bool that keeps track of the back button (in action bar) and what it should come back to
     private boolean backFromWorkout = false;
 
@@ -66,7 +71,7 @@ public class MainActivity extends AppCompatActivity {
             switch (item.getItemId()) {
                 case R.id.navigation_home:
                     //mTextMessage.setText(R.string.title_home);
-                    setTitle(R.string.title_home);
+                    //setTitle(R.string.title_home);
                     SwitchToHomeView();
                     return true;
                 case R.id.navigation_dashboard:
@@ -86,10 +91,12 @@ public class MainActivity extends AppCompatActivity {
     private void SwitchToWorkoutView() {
         //view.setText("Add your text here");
         workoutView.setVisibility(View.VISIBLE);
+        LoadWorkouts();
     }
 
     private void SwitchToHomeView() {
         //view.setText("Add your text here");
+        setTitle(R.string.title_home);
         workoutView.setVisibility(View.INVISIBLE);
     }
 
@@ -127,6 +134,9 @@ public class MainActivity extends AppCompatActivity {
 
     // This function loads the workout data and then creates the views for each workout
     public void LoadWorkouts() {
+        // Clear workout view
+        workoutView.removeAllViews();
+
         // Read the json data for the workouts
         InputStream is = getResources().openRawResource(R.raw.workouts);
         Writer writer = new StringWriter();
@@ -227,7 +237,11 @@ public class MainActivity extends AppCompatActivity {
                     startWorkoutButton.setOnClickListener(new OnClickListener() {
                         @Override
                         public void onClick(View v) {
-                            WorkoutButton(sets, 0);
+                            // Hide back button, show exit button, disable nav bar
+                            getSupportActionBar().setDisplayHomeAsUpEnabled(false);
+                            exitButton.setVisible(true);
+                            bottomNavigationView.setOnNavigationItemSelectedListener(null);
+                            WorkoutButton(sets, 0, new int[sets.length]);
                         }
                     });
                 }
@@ -263,11 +277,16 @@ public class MainActivity extends AppCompatActivity {
             workoutContainer[i].addView(workoutTextSets[i]);
             // Add container to the main workout view
             workoutView.addView(workoutContainer[i]);
+
+            // Edit workout button text for when user clicks on a workout
+            startWorkoutButton.setText("Start Workout!");
         }
     }
 
     // Function that is called when the workout button is clicked
-    public boolean WorkoutButton(final Workouts.Workout.Set[] sets, final int index) {
+    // The workout button being at the bottom of the workout during sets/rest
+    public boolean WorkoutButton(final Workouts.Workout.Set[] sets, final int index, final int[] reps) {
+
         // Clear workout view
         workoutView.removeAllViews();
 
@@ -277,17 +296,25 @@ public class MainActivity extends AppCompatActivity {
         final TextView timerTextView;
         CountDownTimer timer = null;
 
+        final int setsIndex = index / 2;
 
-        int setsIndex = index / 2;
+        // If the final set was completed then index will be equal to sets.Length * 2
+        // When this happens we should display the final workout (completed) view
+        //System.out.println("Sets length = " + sets.length + "    index = " + index);
+        if (sets.length * 2 == index + 1) {
+            EndOfWorkout(sets, reps);
+        }
+
+        // If not the final set then move on to the next set/rest
         // Set
-        if (index % 2 == 0) {
+        else if (index % 2 == 0) {
             // Set the text of the set name
             name.setText(sets[setsIndex].getName());
             name.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 30);
             workoutView.addView(name);
             // Add a text edit (numerical input only)
             // To track the number or reps
-            EditText textInput = new EditText(applicationContext);
+            final EditText textInput = new EditText(applicationContext);
             //textInput.setInputType(InputType.);
             //textInput.setInputType(InputType.TYPE_CLASS_NUMBER);
             textInput.setKeyListener(DigitsKeyListener.getInstance("0123456789"));
@@ -296,6 +323,21 @@ public class MainActivity extends AppCompatActivity {
 
             // Change text of the workout button
             startWorkoutButton.setText("Finished set!");
+
+            // Setup the workout button to be clicked again for the next stage of the workout
+            startWorkoutButton.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    int repsThisSet = 0;
+                    if (!TextUtils.isEmpty(textInput.getText().toString().trim())) {
+                    //if (textInput.getText() != null) {
+                        repsThisSet = Integer.parseInt(textInput.getText().toString());
+                    }
+
+                    reps[setsIndex] = repsThisSet;
+                    WorkoutButton(sets, index + 1, reps);
+                }
+            });
         }
         // Rest
         else {
@@ -318,30 +360,86 @@ public class MainActivity extends AppCompatActivity {
                     // the button for the user automatically)
                     MediaPlayer mp = MediaPlayer.create(applicationContext, R.raw.alert2);
                     mp.start();
-                    WorkoutButton(sets, index + 1);
+                    WorkoutButton(sets, index + 1, reps);
                 }
             }.start();
             workoutView.addView(timerTextView);
-        }
 
-        final CountDownTimer timer2 = timer;
-        // Setup the workout button to be clicked again for the next stage of the workout
-        startWorkoutButton.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                WorkoutButton(sets, index + 1);
-                if(timer2 != null) {
-                    timer2.cancel();
+            // Try and get around creating this second timer
+            final CountDownTimer timer2 = timer;
+            // Setup the workout button to be clicked again for the next stage of the workout
+            startWorkoutButton.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    WorkoutButton(sets, index + 1, reps);
+                    if(timer2 != null) {
+                        timer2.cancel();
+                    }
                 }
-            }
-        });
+            });
+        }
         return true;
     }
 
+    // Call this when the final set has been completed
+    public void EndOfWorkout(Workouts.Workout.Set[] sets, int[] reps) {
+        // Clear workout view
+        workoutView.removeAllViews();
+
+        for (int i = 0; i < reps.length; i++) {
+            // Create a text view for each number of reps
+            TextView name = new TextView(applicationContext);
+            name.setText(sets[i].getName() + " : " + reps[i]);
+            workoutView.addView(name);
+        }
+
+        // Setup workout button to
+        startWorkoutButton.setText("Finished!");
+        getSupportActionBar().setDisplayHomeAsUpEnabled(false);
+        startWorkoutButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                ExitWorkout();
+            }
+        });
+    }
+
+    // Call this when done reviewing 'end of workout' or when exiting from the workout
+    public void ExitWorkout() {
+        // Hide workout button
+        startWorkoutButton.setVisibility(View.INVISIBLE);
+        // Hide exit button
+        exitButton.setVisible(false);
+        // Escape workout and return to home view
+        SwitchToHomeView();
+        bottomNavigationView.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
+        //bottomNavigationView.setSelectedItemId(0);
+        bottomNavigationView.getMenu().getItem(0).setChecked(true);
+    }
+
+    // Add exit button to action bar
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.exit_button, menu);
+
+
+        // Get exitButton, we can only do that in this function
+        exitButton = menu.findItem(R.id.exit_button);
+        // Hide the exitButton for now
+        exitButton.setVisible(false);
+
+        return super.onCreateOptionsMenu(menu);
+    }
+
     // This is the function that is called by the back button from the action bar
+    // Actually it calls all buttons from the action bar
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (backFromWorkout) {
+        System.out.println("App bar item id : " + item.getItemId());
+        if (item.getItemId() == R.id.exit_button) {
+            ExitWorkout();
+        }
+        else if (backFromWorkout) {
             workoutView.removeAllViews();
             backFromWorkout = false;
             getSupportActionBar().setDisplayHomeAsUpEnabled(false);
@@ -352,5 +450,15 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }
         return true;
+    }
+
+    // Helper functions
+    // Enable/disable nav bar
+    // Switch setCheckable to setChecked for a result that unchecks all of nav buttons
+    public void EnableNavBar(boolean state) {
+        int size = bottomNavigationView.getMenu().size();
+        for (int i = 0; i < size; i++) {
+            bottomNavigationView.getMenu().getItem(i).setCheckable(state);
+        }
     }
 }
