@@ -318,6 +318,7 @@ public class MainActivity extends AppCompatActivity {
             //textInput.setInputType(InputType.);
             //textInput.setInputType(InputType.TYPE_CLASS_NUMBER);
             textInput.setKeyListener(DigitsKeyListener.getInstance("0123456789"));
+            textInput.setHint("# reps");
             //textInput.setTransformationMethod(null);
             workoutView.addView(textInput);
 
